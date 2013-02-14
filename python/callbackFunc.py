@@ -7,8 +7,7 @@ def xbee_received(packet):
     #global shared.shared.pkts, shared.motor_gains_set, shared.steering_gains_set, \
     #       shared.steering_rate_set, shared.count2deg
     rf_data = packet.get('rf_data')
-#    rssi = ord(packet.get('rssi'))
-#    print "rssi= ", rssi
+    #rssi = ord(packet.get('rssi'))
     #(src_addr, ) = unpack('H', packet.get('source_addr'))
     #id = packet.get('id')
     #options = ord(packet.get('options'))
@@ -36,10 +35,6 @@ def xbee_received(packet):
     elif (type == command.WHO_AM_I):
        # print "whoami:",status, hex(type), data
         print "whoami:",data
-        (src_addr, ) = unpack('>H', packet.get('source_addr'))
-        print "Source address: 0x%02X | " % src_addr,
-        print "rssi= ", ord(packet.get('rssi'))
-
     elif (type == command.SET_PID_GAINS):
         print "Set PID gains"
         gains = unpack('10h', data)
@@ -59,7 +54,7 @@ def xbee_received(packet):
     elif (type == command.ZERO_POS):
         print 'Previous motor positions:',
         motor = unpack('=2l',data)
-        print 'motor 0= %x' %motor[0] + ' motor 1= %x ' %motor[1]
+        print motor
     elif (type == command.SET_CTRLD_TURN_RATE):
         print "Set turning rate"
         rate = unpack('=h', data)[0]
@@ -76,22 +71,14 @@ def xbee_received(packet):
                 shared.imudata.append(datum[4*i:4*(i+1)] )
     elif (type == command.SPECIAL_TELEMETRY):
         shared.pkts = shared.pkts + 1
-        # first word is packet #
-        # updated angle position to signed long (l) for IP2.5
- #       print "pkt ",shared.pkts,
-        print ".",
-        pattern = '=LLll'+13*'h'
+        print "pkt ",shared.pkts,
+        pattern = '=L'+14*'h'
         datum = unpack(pattern, data)
-        telem_index = datum[0]
  # diagnostic
-#        if (shared.pkts <= 30):
-#            print "datum =", datum
- #           print "rssi= ", ord(packet.get('rssi'))
+ #       if (shared.pkts < 20):
+ #           print "datum =", datum
         if (datum[0] != -1):
-            if (shared.pkts != telem_index):
-                print str(shared.pkts) + "<>" + str(telem_index),
-            shared.imudata.append(datum)  # save data anyway
-  
+            shared.imudata.append(datum)                   
     else:    
         pass
 
