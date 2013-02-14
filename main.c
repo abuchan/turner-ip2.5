@@ -22,7 +22,7 @@
 #include "utils.h"
 #include "queue.h"
 #include "radio.h"
-#include "MyConsts/radio_settings.h"
+#include "settings.h"
 #include "tests.h" 
 #include "dfmem.h"
 #include "interrupts.h"
@@ -31,15 +31,22 @@
 #include "tih.h"
 #include "blink.h"
 #include <stdlib.h>
+#include "cmd.h"
+#include "pid-ip2.5.h"
+#include "steering.h"
+#include "consts.h"
+#include "adc_pid.h"
+#include "led.h"
 
 Payload rx_payload;
 MacPacket rx_packet;
 Test* test;
-
+unsigned int error_code;
 
 int main() {
     fun_queue = queueInit(FUN_Q_LEN);
     test_function tf;
+    error_code = ERR_NONE;
 
     /* Initialization */
     SetupClock();
@@ -47,49 +54,69 @@ int main() {
     SetupPorts();
 
     SetupInterrupts();
-    //SetupI2C();
-    //SetupADC();
-    SetupTimer1();
-    //SetupPWM();
+    adcSetup();   // DMA A/D
+//    SetupTimer1(); setup in pidSetup
     SetupTimer2();
     sclockSetup();
-    mpuSetup();
+    mpuSetup(1);        //cs==2
     amsHallSetup();
-    dfmemSetup();
+    dfmemSetup(0);      //cs==1
     tiHSetup();   // set up H bridge drivers
+	cmdSetup();  // setup command table
+	pidSetup();  // setup PID control
 
     // Radio setup
-    radioInit(RADIO_RXPQ_MAX_SIZE, RADIO_TXPQ_MAX_SIZE);
-    radioSetChannel(RADIO_MY_CHAN);
+    radioInit(RADIO_RXPQ_MAX_SIZE, RADIO_TXPQ_MAX_SIZE, 0);     //cs==1
+    radioSetChannel(RADIO_CHANNEL);
     radioSetSrcAddr(RADIO_SRC_ADDR);
-    radioSetSrcPanID(RADIO_PAN_ID);
+    radioSetSrcPanID(RADIO_SRC_PAN_ID);
     setupTimer6(RADIO_FCY); // Radio and buffer loop timer
+/**** set up steering last - so dfmem can finish ****/
+	//steeringSetup(); // steering and Timer5 Int
 
-	blink_leds(4,500); // blink LEDs 4 times at half sec
-    char j;
-    for(j=0; j<3; j++){
-        LED_2 = ON;
-        delay_ms(250);
-        LED_2 = OFF;
-        delay_ms(250);
-    }
+    //Motor Test
+
+    // int interval[3], delta[3], vel[3];
+    // pidSetGains(0,400,0,0,0,0);
+    // pidSetGains(1,400,0,0,0,0);
+
+    // //set vel profile
+    // int i;
+    // for (i= 0; i < 4; i++)
+    // {
+    //     delta[i] = 0x4000;
+    //     interval[i] = 256;
+    //     vel[i] = 64;
+    // }
+
+
+    // setPIDVelProfile(0, interval, delta, vel);
+    // setPIDVelProfile(1, interval, delta, vel);
+    // //Set thrust closed loop
+  
+    // pidSetInput(0 ,0, 1000);
+    // pidOn(0);
+    // pidSetInput(1 ,0, 1000);
+    // pidOn(1);
+
+    //Open loop moto test
+    // DisableIntT1;   // since PID interrupt overwrites PWM values
+
+    // tiHSetDC(1, 0x200);
+    // tiHSetDC(2, 0x200); 
+    // delay_ms(4000);
+    // tiHSetDC(1,0);
+    // tiHSetDC(2,0);
+    // EnableIntT1;
 
     LED_2 = ON;
 
-    EnableIntT2;
+    //EnableIntT2;
+    DisableIntT1;
     while(1){
-        while(!queueIsEmpty(fun_queue))
-        {
-            test = queuePop(fun_queue);
-            rx_payload = macGetPayload(test->packet);
-            tf = test->tf;
-            (*tf)(payGetType(rx_payload), 
-                    payGetStatus(rx_payload), 
-			  payGetDataLength(rx_payload), 
-                    payGetData(rx_payload));
-            radioReturnPacket(test->packet);
-            free(test);
-        }
+        amsGetPos(0);amsGetPos(1);
+        delay_ms(10);
+
     }
     return 0;
 }
