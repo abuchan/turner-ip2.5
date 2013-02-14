@@ -37,6 +37,7 @@
 #include "consts.h"
 #include "adc_pid.h"
 #include "led.h"
+#include "uart_driver.h"
 
 Payload rx_payload;
 MacPacket rx_packet;
@@ -59,18 +60,20 @@ int main() {
     SetupTimer2();
     sclockSetup();
     mpuSetup(1);        //cs==2
-    amsHallSetup();
+    //amsHallSetup();
     dfmemSetup(0);      //cs==1
     tiHSetup();   // set up H bridge drivers
 	cmdSetup();  // setup command table
-	pidSetup();  // setup PID control
+	//pidSetup();  // setup PID control
 
     // Radio setup
-    radioInit(RADIO_RXPQ_MAX_SIZE, RADIO_TXPQ_MAX_SIZE, 0);     //cs==1
+    /*radioInit(RADIO_RXPQ_MAX_SIZE, RADIO_TXPQ_MAX_SIZE, 0);     //cs==1
     radioSetChannel(RADIO_CHANNEL);
     radioSetSrcAddr(RADIO_SRC_ADDR);
     radioSetSrcPanID(RADIO_SRC_PAN_ID);
-    setupTimer6(RADIO_FCY); // Radio and buffer loop timer
+    setupTimer6(RADIO_FCY);*/ // Radio and buffer loop timer
+    uartInit();
+
 /**** set up steering last - so dfmem can finish ****/
 	//steeringSetup(); // steering and Timer5 Int
 
@@ -113,7 +116,10 @@ int main() {
 
     EnableIntT2;
     //DisableIntT1;
+    unsigned char count = 0;
     while(1){
+        uartSendPayload(0,1,1,&count);
+        
   while(!queueIsEmpty(fun_queue))
         {
             test = queuePop(fun_queue);
